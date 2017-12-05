@@ -12,8 +12,8 @@ library(dplyr)
 load("Shiny_Data_1204.RData")
 
 set.seed(2017)
-stations_full <- stations_full %>%
-  filter(Site %in% stations_full$Site[sample(nrow(stations_full), 30)])
+ stations_full <- stations_full %>%
+   filter(Site %in% stations_full$Site[sample(nrow(stations_full), 30)])
 
 results_full <- results_full %>%
   filter(Site %in% stations_full$Site) %>%
@@ -25,7 +25,7 @@ results_full <- results_full %>%
 #############################################################################
 
 ui <- fluidPage(
-  
+  #selectInput(''),
   headerPanel('Water Quality Visualization Tool'),
   fluidRow(column(width = 10,
                   leafletOutput("Map", width = "100%", height = 600),
@@ -80,13 +80,15 @@ server <- function(input, output, session) {
       filter(Site == input$site, 
              Parameter == input$para,
              Date %in% as.Date(input$date[1]):as.Date(input$date[2])) %>%
-      select("Date", "Parameter", "Result")
+      select("Date", "Parameter", "Result", "Depth.Code")
     
-    ts_plot <- ggplot(ts_data, aes(x = as.Date(Date), y = as.numeric(Result))) + 
-      geom_point(labels = input$para) + theme_classic() + ylab(input$para) + xlab("Date") 
+    ts_plot <- ggplot(ts_data) + 
+      geom_point(aes(x = as.Date(Date), y = as.numeric(Result), color = Depth.Code)) + 
+      theme_classic() + ylab(input$para) + xlab("Date") +
+      scale_color_discrete(name = "Depth")
     
     if(input$loess) {
-      ts_plot <- ts_plot + geom_smooth(se = FALSE)
+      ts_plot <- ts_plot + geom_smooth(aes(x = as.Date(Date), y = as.numeric(Result)), se = F, na.rm = T)
     }  
     ggplotly(ts_plot)
   })
@@ -95,7 +97,13 @@ server <- function(input, output, session) {
     leaflet(stations_full, options = leafletOptions(minzoom = 9, maxzoom = 9)) %>% 
       addTiles() %>%
       setView(lng = -72.947542, lat = 41.016421, zoom = 9) %>% 
-      addCircleMarkers(~ Lng, ~ Lat, color = ~ Source, popup = ~ Site, layerId = ~ Site)})
+      addCircleMarkers(~ Lng, ~ Lat, color = ~ Source, 
+                       popup = paste("Site:", stations_full$Site, "<br/>",
+                                     "Location: ", stations_full$MonitoringLocationName, "<br/>",
+                                     "Type: ", stations_full$MonitoringLocationTypeName, "<br/>",
+                                     "Organization: ", stations_full$OrganizationIdentifier, "<br/>",
+                                     "Data Source: ", stations_full$Source),
+                       layerId = ~ Site)})
 
   observeEvent(input$Map_marker_click, { # update the location selectInput on map clicks
     click_on_site <- input$Map_marker_click
@@ -105,11 +113,9 @@ server <- function(input, output, session) {
   })
   
   output$downloadData <- downloadHandler(
-    
     filename = function() {
       paste("download", ".csv", sep = "")  # need improve
     },
-    
     content = function(file) {
       download_data <- results_full %>%
         filter(Site %in% input$dsite,
@@ -119,6 +125,7 @@ server <- function(input, output, session) {
     write.csv(download_data, file, row.names = FALSE)
     }
   )
+  
 }
 
 
