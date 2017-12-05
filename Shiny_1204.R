@@ -114,8 +114,7 @@ server <- function(input, output, session) {
       download_data <- results_full %>%
         filter(Site %in% input$dsite,
                Parameter %in% input$dpara,
-               Date %in% as.Date(input$ddate[1]):as.Date(input$ddate[2])) %>%
-        select(Site, Date, Parameter, Result)
+               Date %in% as.Date(input$ddate[1]):as.Date(input$ddate[2]))
       
     write.csv(download_data, file, row.names = FALSE)
     }
